@@ -1,2 +1,2 @@
 # exploding-wumpus
-tes
+**AKU NAK MELETUPPPPP**
