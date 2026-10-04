@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exploding Wumpus — Operation Bomb Defuse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+
+        .tactical-font {
+            font-family: 'Chakra Petch', sans-serif;
+        }
+
+        .grid-cell {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .fog-of-war {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.03), 0 4px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .revealed-cell {
+            background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+            border-color: #3b82f6;
+            box-shadow: inset 0 0 12px rgba(59, 130, 246, 0.2);
+        }
+
+        .player-glow {
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.9));
+            animation: player-pulse 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes player-pulse {
+            from { transform: scale(0.96); }
+            to { transform: scale(1.04); }
+        }
+
+        .bomb-glow {
+            animation: bomb-pulse 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes bomb-pulse {
+            from { filter: drop-shadow(0 0 4px #ef4444); }
+            to { filter: drop-shadow(0 0 14px #dc2626); }
+        }
+
+        .kit-glow {
+            animation: kit-pulse 1.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes kit-pulse {
+            from { filter: drop-shadow(0 0 3px #10b981); transform: scale(0.95); }
+            to { filter: drop-shadow(0 0 12px #34d399); transform: scale(1.05); }
+        }
+
+        .timer-warning {
+            animation: warning-blink 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes warning-blink {
+            from { color: #f59e0b; }
+            to { color: #ef4444; }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen p-3 sm:p-6 justify-between items-center select-none">
+
+    <!-- Header Section -->
+    <header class="text-center mb-2 w-full max-w-4xl">
+        <h1 class="text-3xl sm:text-5xl font-bold tactical-font tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 drop-shadow-md flex items-center justify-center gap-3">
+            <svg class="w-9 h-9 sm:w-11 sm:h-11 text-red-500" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="38" r="22" fill="#0F172A" stroke="#EF4444" stroke-width="4"/>
+                <path d="M32 16V6M32 6C36 6 40 10 40 14" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
+                <circle cx="40" cy="14" r="3" fill="#EF4444"/>
+            </svg>
+            EXPLODING WUMPUS
+        </h1>
+        <p class="text-slate-400 text-xs sm:text-sm mt-1 uppercase tracking-widest font-mono">Operasi Penjinak Bom & Defuse Taktis</p>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+
+        <!-- Left Side: 6x6 Grid & Sensor Bar -->
+        <div class="lg:col-span-7 flex flex-col items-center w-full">
+            
+            <!-- Sensor HUD Bar -->
+            <div id="sensorBar" class="w-full max-w-[420px] sm:max-w-[460px] bg-slate-900/90 border border-slate-800 rounded-xl p-3 mb-3 flex justify-around items-center text-xs shadow-2xl backdrop-blur-md">
+                <!-- Gunpowder Stench Sensor -->
+                <div id="sensorStench" class="flex items-center gap-2 opacity-25 transition-all duration-300">
+                    <svg class="w-6 h-6" viewBox="0 0 64 64" fill="none">
+                        <path d="M16 48C16 48 24 40 24 32C24 24 16 20 16 20" stroke="#F59E0B" stroke-width="6" stroke-linecap="round"/>
+                        <path d="M32 44C32 44 40 36 40 28C40 20 32 16 32 16" stroke="#EF4444" stroke-width="6" stroke-linecap="round"/>
+                        <path d="M48 52C48 52 56 44 56 36C56 28 48 24 48 24" stroke="#78350F" stroke-width="6" stroke-linecap="round"/>
+                    </svg>
+                    <span class="font-bold text-amber-400 uppercase tracking-wider">Bau Mesiu</span>
+                </div>
+
+                <!-- Ticking Echo Sensor -->
+                <div id="sensorBreeze" class="flex items-center gap-2 opacity-25 transition-all duration-300">
+                    <svg class="w-6 h-6" viewBox="0 0 64 64" fill="none">
+                        <circle cx="32" cy="32" r="8" stroke="#38BDF8" stroke-width="4"/>
+                        <circle cx="32" cy="32" r="18" stroke="#0ea5e9" stroke-width="4" stroke-dasharray="6 4"/>
+                        <circle cx="32" cy="32" r="26" stroke="#0284c7" stroke-width="3" stroke-dasharray="4 4"/>
+                    </svg>
+                    <span class="font-bold text-cyan-400 uppercase tracking-wider">Dengung Detektor</span>
+                </div>
+
+                <!-- Radar Pulse Sensor -->
+                <div id="sensorGlint" class="flex items-center gap-2 opacity-25 transition-all duration-300">
+                    <svg class="w-6 h-6" viewBox="0 0 64 64" fill="none">
+                        <path d="M32 4L38 24L58 30L38 36L32 56L26 36L6 30L26 24L32 4Z" fill="#10B981"/>
+                        <circle cx="32" cy="30" r="6" fill="#A7F3D0"/>
+                    </svg>
+                    <span class="font-bold text-emerald-400 uppercase tracking-wider">Sinyal Radar</span>
+                </div>
+            </div>
+
+            <!-- Grid 6x6 Container -->
+            <div id="gridContainer" class="grid grid-cols-6 gap-1.5 sm:gap-2 p-3 bg-slate-950 border-2 border-slate-800 rounded-2xl shadow-2xl w-full max-w-[420px] sm:max-w-[460px] aspect-square relative">
+                <!-- 36 Grid Cells generated by JS -->
+            </div>
+
+            <!-- Action Buttons Bar -->
+            <div class="mt-3 flex gap-3 w-full max-w-[420px] sm:max-w-[460px]">
+                <button id="btnGrab" onclick="grabDefuseKit()" class="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-slate-950 font-bold tracking-wider uppercase rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs sm:text-sm">
+                    <i class="fa-solid fa-scissors text-base"></i> Ambil Defuse Kit
+                </button>
+                <button id="btnExit" onclick="callSupportAndDefuse()" class="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-95 text-white font-bold tracking-wider uppercase rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs sm:text-sm">
+                    <i class="fa-solid fa-radio text-base"></i> Panggil Pasukan
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Side: Status & Tactical Movement Controls -->
+        <div class="lg:col-span-5 flex flex-col gap-4 w-full">
+            
+            <!-- Game Status Box -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold uppercase tracking-widest text-slate-400">Status Misi</span>
+                    <button onclick="resetGame()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-semibold">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reset Misi
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <!-- Defuse Kit Counter -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Defuse Kit Terkumpul</p>
+                        <p id="statusKit" class="font-bold text-emerald-400 text-xl tracking-widest mt-1">0 / 5</p>
+                    </div>
+
+                    <!-- Global 1-Min Countdown Timer -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Sisa Waktu Operasi</p>
+                        <p id="globalTimer" class="font-bold text-amber-400 text-xl tracking-widest font-mono mt-1">01:00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col items-center">
+                <div class="flex justify-between items-center w-full mb-3">
+                    <span class="text-xs font-bold uppercase tracking-widest text-slate-400">Navigasi Taktis</span>
+                    <span class="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">WASD / Panah</span>
+                </div>
+
+                <!-- Navigation D-Pad -->
+                <div class="grid grid-cols-3 gap-2 w-36 my-2">
+                    <div></div>
+                    <button onclick="movePlayer('up')" class="h-11 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl font-bold shadow flex items-center justify-center text-lg transition-all border border-slate-700">
+                        <i class="fa-solid fa-chevron-up"></i>
+                    </button>
+                    <div></div>
+                    <button onclick="movePlayer('left')" class="h-11 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-lg font-bold shadow flex items-center justify-center text-lg transition-all border border-slate-700">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <button onclick="movePlayer('down')" class="h-11 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-lg font-bold shadow flex items-center justify-center text-lg transition-all border border-slate-700">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <button onclick="movePlayer('right')" class="h-11 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-lg font-bold shadow flex items-center justify-center text-lg transition-all border border-slate-700">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <p class="text-[11px] text-slate-500 mt-2 text-center">Spasi / G: Ambil Kit | E: Panggil Pasukan di Bunker</p>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Quiz Modal for Landmine Disarm -->
+    <div id="quizModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border-2 border-red-600/80 rounded-2xl p-6 max-w-md w-full text-center shadow-2xl relative">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <span class="text-xs font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <i class="fa-solid fa-triangle-exclamation"></i> DEAKTIVASI RANJAU AKTIF
+                </span>
+                <span id="quizTimer" class="text-xl font-bold font-mono text-amber-400 bg-slate-950 px-3 py-1 rounded-lg border border-amber-500/40">15s</span>
+            </div>
+            
+            <p id="quizQuestion" class="text-sm sm:text-base font-semibold text-slate-200 mb-5 leading-relaxed text-left">
+                Pertanyaan kuis akan muncul di sini...
+            </p>
+
+            <div id="quizOptions" class="flex flex-col gap-2.5 mb-2">
+                <!-- Dynamic Quiz Option Buttons -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Popup for Mission Result -->
+    <div id="gameModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border-2 border-slate-800 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl transform transition-all">
+            <div id="modalIcon" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 p-3">
+                <!-- Dynamic SVG/Icon -->
+            </div>
+            <h3 id="modalTitle" class="text-2xl font-bold tactical-font text-white mb-2 uppercase tracking-wide">Misi Selesai</h3>
+            <p id="modalDesc" class="text-slate-300 text-xs sm:text-sm mb-6 leading-relaxed">Status Misi.</p>
+            <button onclick="resetGame(); closeModal();" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold tracking-wider uppercase rounded-xl shadow-lg transition-all">
+                Coba Misi Baru
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Inline Vector SVG Assets
+        const ASSETS = {
+            PLAYER: `<svg class="w-full h-full player-glow" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="26" fill="#1E3A8A" stroke="#3B82F6" stroke-width="3"/>
+                <path d="M32 14L42 28H22L32 14Z" fill="#38BDF8"/>
+                <circle cx="32" cy="38" r="10" fill="#0F172A"/>
+                <circle cx="28" cy="36" r="2" fill="#38BDF8"/>
+                <circle cx="36" cy="36" r="2" fill="#38BDF8"/>
+            </svg>`,
+
+            BOMB: `<svg class="w-full h-full bomb-glow" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="38" r="22" fill="#111827" stroke="#EF4444" stroke-width="3"/>
+                <circle cx="32" cy="38" r="16" fill="#030712"/>
+                <path d="M32 16V6M32 6C36 6 40 10 40 14" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
+                <circle cx="40" cy="14" r="3" fill="#EF4444"/>
+                <path d="M26 34H38M32 28V40" stroke="#DC2626" stroke-width="3" stroke-linecap="round"/>
+            </svg>`,
+
+            MINE: `<svg class="w-full h-full" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="20" fill="#020617" stroke="#334155" stroke-width="3"/>
+                <path d="M32 6V12M32 52V58M6 32H12M52 32H58M14 14L18 18M46 46L50 50M14 50L18 46M46 18L50 14" stroke="#EF4444" stroke-width="4" stroke-linecap="round"/>
+                <circle cx="32" cy="32" r="8" fill="#DC2626"/>
+            </svg>`,
+
+            DEFUSE_KIT: `<svg class="w-full h-full kit-glow" viewBox="0 0 64 64" fill="none">
+                <path d="M18 14L32 30M46 14L32 30" stroke="#10B981" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="18" cy="14" r="6" stroke="#34D399" stroke-width="4"/>
+                <circle cx="46" cy="14" r="6" stroke="#34D399" stroke-width="4"/>
+                <rect x="28" y="30" width="8" height="24" rx="3" fill="#059669"/>
+            </svg>`,
+
+            STENCH: `<svg class="w-3.5 h-3.5" viewBox="0 0 64 64" fill="none">
+                <path d="M16 48C16 48 24 40 24 32C24 24 16 20 16 20" stroke="#F59E0B" stroke-width="8" stroke-linecap="round"/>
+                <path d="M38 44C38 44 46 36 46 28C46 20 38 16 38 16" stroke="#EF4444" stroke-width="8" stroke-linecap="round"/>
+            </svg>`,
+
+            BREEZE: `<svg class="w-3.5 h-3.5" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="10" stroke="#38BDF8" stroke-width="8"/>
+                <circle cx="32" cy="32" r="22" stroke="#0ea5e9" stroke-width="6" stroke-dasharray="8 6"/>
+            </svg>`,
+
+            GLINT: `<svg class="w-3.5 h-3.5" viewBox="0 0 64 64" fill="none">
+                <path d="M32 4L38 24L58 30L38 36L32 56L26 36L6 30L26 24L32 4Z" fill="#10B981"/>
+            </svg>`
+        };
+
+        // Bank Soal Kuis Ranjau
+        const QUIZ_BANK = [
+            {
+                question: "Siapakah Ketua Himpunan Mahasiswa Informatika ITK Kabinet Impact?",
+                options: ["Thopan Rahman Hakim", "Noel Ericson Rapael Sipayung", "Angger Karisma Deotama", "Aprian Syahrani"],
+                answer: 1
+            },
+            {
+                question: "Matkul manakah yang mempelajari tentang Wumpus World?",
+                options: ["PKA", "PBO", "Arsikom", "Alpro"],
+                answer: 0
+            },
+            {
+                question: "Kapan HMIF ITK berdiri?",
+                options: ["17 Agustus 1945", "6 Februari 2020", "28 September 2012", "5 July 2017"],
+                answer: 1
+            },
+            {
+                question: "Kabinet HMIF tahun 2024-2025 adalah...",
+                options: ["Impact", "Clarity", "Source", "Protocol"],
+                answer: 1
+            },
+            {
+                question: "Departemen di HMIF yang mengatur urusan kaderisasi adalah...",
+                options: ["Kesejahteraan Mahasiswa", "Dalam Negeri", "Hubungan Luar", "PSDM"],
+                answer: 3
+            }
+        ];
+
+        // Sound Effects Synthesizer
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'move') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.exponentialRampToValueAtTime(240, now + 0.08);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'kit') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'explosion') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(20, now + 0.7);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+                osc.start(now);
+                osc.stop(now + 0.7);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.15);
+                osc.frequency.setValueAtTime(659.25, now + 0.3);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+        }
+
+        const GRID_SIZE = 6;
+        const TOTAL_KITS = 5;
+        const START_POS = { r: 5, c: 0 };
+
+        let playerPos = { ...START_POS };
+        let bombPos = { r: -1, c: -1 };
+        let kitPositions = [];
+        let mines = [];
+        let revealed = [];
+        let collectedKitsCount = 0;
+        let gameOver = false;
+
+        // Global 1-Minute Timer (60 Detik)
+        let globalTimeSeconds = 60;
+        let globalTimerInterval = null;
+
+        // Quiz Timer
+        let quizTimeSeconds = 15;
+        let quizTimerInterval = null;
+        let currentMineCell = null;
+
+        window.onload = function() {
+            initGame();
+            setupKeyboard();
+        };
+
+        function initGame() {
+            playerPos = { ...START_POS };
+            collectedKitsCount = 0;
+            gameOver = false;
+            mines = [];
+            kitPositions = [];
+
+            revealed = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
+            revealed[START_POS.r][START_POS.c] = true;
+
+            let availableCoords = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (r !== START_POS.r || c !== START_POS.c) {
+                        availableCoords.push({ r, c });
+                    }
+                }
+            }
+
+            availableCoords.sort(() => Math.random() - 0.5);
+
+            // Bomb Position
+            bombPos = availableCoords.pop();
+
+            // 5 Defuse Kits
+            for (let i = 0; i < TOTAL_KITS; i++) {
+                if (availableCoords.length > 0) {
+                    kitPositions.push({ ...availableCoords.pop(), grabbed: false });
+                }
+            }
+
+            // 4-5 Landmines
+            const mineCount = Math.floor(Math.random() * 2) + 4;
+            for (let i = 0; i < mineCount; i++) {
+                if (availableCoords.length > 0) {
+                    mines.push({ ...availableCoords.pop(), disarmed: false });
+                }
+            }
+
+            // Reset Global 1-Min Timer
+            clearInterval(globalTimerInterval);
+            globalTimeSeconds = 60;
+            startGlobalTimer();
+
+            updateUI();
+        }
+
+        function startGlobalTimer() {
+            globalTimerInterval = setInterval(() => {
+                if (gameOver) return;
+                globalTimeSeconds--;
+                
+                const mins = Math.floor(globalTimeSeconds / 60);
+                const secs = globalTimeSeconds % 60;
+                const timerElem = document.getElementById('globalTimer');
+                timerElem.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+                if (globalTimeSeconds <= 15) {
+                    timerElem.classList.add('timer-warning');
+                } else {
+                    timerElem.classList.remove('timer-warning');
+                }
+
+                if (globalTimeSeconds <= 0) {
+                    clearInterval(globalTimerInterval);
+                    playSound('explosion');
+                    endGame(false, "WAKTU OPERASI 1 MENIT HABIS! BOM AKTIF MELEDAK DI SELURUH AREA.", ASSETS.BOMB, "bg-red-950/80 border border-red-800");
+                }
+            }, 1000);
+        }
+
+        function updateUI() {
+            renderGrid();
+            updateSensors();
+            updateStatusPanel();
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('gridContainer');
+            container.innerHTML = '';
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = `grid-cell rounded-xl flex flex-col justify-between p-1 relative border transition-all duration-300 select-none`;
+                    
+                    const isRevealed = revealed[r][c];
+                    const isPlayerHere = playerPos.r === r && playerPos.c === c;
+
+                    if (isRevealed || gameOver) {
+                        cell.classList.add('revealed-cell');
+
+                        let contentHTML = '<div class="flex flex-wrap gap-0.5 items-center justify-center h-full w-full p-1">';
+
+                        const mineHere = mines.find(m => m.r === r && m.c === c);
+                        if (mineHere && !mineHere.disarmed) {
+                            contentHTML += `<div class="w-8 h-8 sm:w-10 sm:h-10">${ASSETS.MINE}</div>`;
+                        }
+
+                        if (bombPos.r === r && bombPos.c === c) {
+                            contentHTML += `<div class="w-8 h-8 sm:w-10 sm:h-10">${ASSETS.BOMB}</div>`;
+                        }
+
+                        const kitHere = kitPositions.find(k => k.r === r && k.c === c && !k.grabbed);
+                        if (kitHere) {
+                            contentHTML += `<div class="w-7 h-7 sm:w-9 sm:h-9">${ASSETS.DEFUSE_KIT}</div>`;
+                        }
+
+                        contentHTML += '</div>';
+                        cell.innerHTML = contentHTML;
+
+                        if (isRevealed && !(mineHere && !mineHere.disarmed) && !(bombPos.r === r && bombPos.c === c)) {
+                            let hintIcons = '';
+                            if (hasStench(r, c)) hintIcons += ASSETS.STENCH;
+                            if (hasBreeze(r, c)) hintIcons += ASSETS.BREEZE;
+                            if (kitHere) hintIcons += ASSETS.GLINT;
+                            
+                            if (hintIcons) {
+                                const hintDiv = document.createElement('div');
+                                hintDiv.className = 'absolute top-1 left-1 flex items-center gap-0.5 bg-slate-950/80 px-1 py-0.5 rounded border border-slate-800';
+                                hintDiv.innerHTML = hintIcons;
+                                cell.appendChild(hintDiv);
+                            }
+                        }
+
+                    } else {
+                        cell.classList.add('fog-of-war', 'border-slate-800');
+                        cell.innerHTML = `<div class="flex items-center justify-center h-full opacity-20 text-slate-500 text-xs"><i class="fa-solid fa-shield-halved"></i></div>`;
+                    }
+
+                    if (r === START_POS.r && c === START_POS.c) {
+                        const startTag = document.createElement('span');
+                        startTag.className = 'absolute bottom-0.5 right-1 text-[8px] sm:text-[9px] bg-blue-950 text-blue-300 px-1 rounded font-bold border border-blue-800 uppercase tracking-widest';
+                        startTag.innerText = 'Bunker';
+                        cell.appendChild(startTag);
+                    }
+
+                    if (isPlayerHere) {
+                        const playerElem = document.createElement('div');
+                        playerElem.className = 'absolute inset-0 flex items-center justify-center z-10 p-1';
+                        playerElem.innerHTML = `<div class="w-8 h-8 sm:w-10 sm:h-10">${ASSETS.PLAYER}</div>`;
+                        cell.appendChild(playerElem);
+                    }
+
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        function updateSensors() {
+            const stench = hasStench(playerPos.r, playerPos.c);
+            const breeze = hasBreeze(playerPos.r, playerPos.c);
+            const glint = kitPositions.some(k => k.r === playerPos.r && k.c === playerPos.c && !k.grabbed);
+
+            document.getElementById('sensorStench').style.opacity = stench ? '1' : '0.25';
+            document.getElementById('sensorBreeze').style.opacity = breeze ? '1' : '0.25';
+            document.getElementById('sensorGlint').style.opacity = glint ? '1' : '0.25';
+        }
+
+        function updateStatusPanel() {
+            document.getElementById('statusKit').innerText = `${collectedKitsCount} / ${TOTAL_KITS}`;
+        }
+
+        function movePlayer(dir) {
+            if (gameOver || currentMineCell) return;
+
+            let newR = playerPos.r;
+            let newC = playerPos.c;
+
+            if (dir === 'up') newR--;
+            if (dir === 'down') newR++;
+            if (dir === 'left') newC--;
+            if (dir === 'right') newC++;
+
+            if (newR < 0 || newR >= GRID_SIZE || newC < 0 || newC >= GRID_SIZE) return;
+
+            playerPos = { r: newR, c: newC };
+            revealed[newR][newC] = true;
+            playSound('move');
+
+            // Cek jika meninjak Ranjau Aktif
+            const activeMine = mines.find(m => m.r === newR && m.c === newC && !m.disarmed);
+            if (activeMine) {
+                triggerMineQuiz(activeMine);
+                return;
+            }
+
+            // Cek jika meninjak Bom Utama
+            if (bombPos.r === newR && bombPos.c === newC) {
+                playSound('explosion');
+                endGame(false, "KAMU BERJALAN LANGSUNG KE ATAS BOM WUMPUS! LEDAKAN DASHYAT TERJADI.", ASSETS.BOMB, "bg-red-950/80 border border-red-800");
+                return;
+            }
+
+            updateUI();
+        }
+
+        function triggerMineQuiz(mine) {
+            currentMineCell = mine;
+            const randomQuiz = QUIZ_BANK[Math.floor(Math.random() * QUIZ_BANK.length)];
+            
+            document.getElementById('quizQuestion').innerText = randomQuiz.question;
+            const optionsContainer = document.getElementById('quizOptions');
+            optionsContainer.innerHTML = '';
+
+            randomQuiz.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 active:scale-98 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 text-left transition-all flex items-center gap-2";
+                btn.innerHTML = `<span class="w-5 h-5 rounded-full bg-slate-950 text-slate-400 text-xs flex items-center justify-center border border-slate-800 font-mono">${String.fromCharCode(65 + idx)}</span> ${optText}`;
+                btn.onclick = () => handleQuizAnswer(idx === randomQuiz.answer);
+                optionsContainer.appendChild(btn);
+            });
+
+            // Start 15-second Quiz Countdown
+            quizTimeSeconds = 15;
+            document.getElementById('quizTimer').innerText = `${quizTimeSeconds}s`;
+            
+            clearInterval(quizTimerInterval);
+            quizTimerInterval = setInterval(() => {
+                quizTimeSeconds--;
+                document.getElementById('quizTimer').innerText = `${quizTimeSeconds}s`;
+
+                if (quizTimeSeconds <= 0) {
+                    clearInterval(quizTimerInterval);
+                    closeQuizModal();
+                    playSound('explosion');
+                    endGame(false, "WAKTU PENJINAKAN RANJAU HABIS (15s)! RANJAU MELEDAK KETIKA DITEMPATI.", ASSETS.MINE, "bg-red-950/80 border border-red-800");
+                }
+            }, 1000);
+
+            document.getElementById('quizModal').classList.remove('hidden');
+            document.getElementById('quizModal').classList.add('flex');
+        }
+
+        function handleQuizAnswer(isCorrect) {
+            clearInterval(quizTimerInterval);
+            closeQuizModal();
+
+            if (isCorrect) {
+                if (currentMineCell) {
+                    currentMineCell.disarmed = true;
+                }
+                currentMineCell = null;
+                playSound('kit');
+                updateUI();
+            } else {
+                playSound('explosion');
+                endGame(false, "JAWABAN DEAKTIVASI SALAH! PEMICU RANJAU DARAT TERBAKAR DAN MELEDAK.", ASSETS.MINE, "bg-red-950/80 border border-red-800");
+            }
+        }
+
+        function closeQuizModal() {
+            document.getElementById('quizModal').classList.add('hidden');
+            document.getElementById('quizModal').classList.remove('flex');
+        }
+
+        function grabDefuseKit() {
+            if (gameOver || currentMineCell) return;
+
+            const kitAtCell = kitPositions.find(k => k.r === playerPos.r && k.c === playerPos.c && !k.grabbed);
+
+            if (kitAtCell) {
+                kitAtCell.grabbed = true;
+                collectedKitsCount++;
+                playSound('kit');
+                updateUI();
+            }
+        }
+
+        function callSupportAndDefuse() {
+            if (gameOver || currentMineCell) return;
+
+            if (playerPos.r === START_POS.r && playerPos.c === START_POS.c) {
+                if (collectedKitsCount === TOTAL_KITS) {
+                    playSound('win');
+                    endGame(true, "BERHASIL! DENGAN 5 DEFUSE KIT TERKUMPUL, PASUKAN BERHASIL MEMATIKAN BOM WUMPUS SECARA TOTAL!", ASSETS.DEFUSE_KIT, "bg-emerald-950/80 border border-emerald-800");
+                } else {
+                    alert(`Kamu belum mengumpulkan semua Defuse Kit! Baru terkumpul ${collectedKitsCount}/${TOTAL_KITS}.`);
+                }
+            } else {
+                alert("Kamu harus kembali ke petak awal (Bunker 1,1) untuk memanggil bantuan pasukan!");
+            }
+        }
+
+        function getNeighbors(r, c) {
+            const neighbors = [];
+            if (r > 0) neighbors.push({ r: r - 1, c });
+            if (r < GRID_SIZE - 1) neighbors.push({ r: r + 1, c });
+            if (c > 0) neighbors.push({ r, c: c - 1 });
+            if (c < GRID_SIZE - 1) neighbors.push({ r, c: c + 1 });
+            return neighbors;
+        }
+
+        function hasStench(r, c) {
+            return getNeighbors(r, c).some(n => n.r === bombPos.r && n.c === bombPos.c);
+        }
+
+        function hasBreeze(r, c) {
+            return getNeighbors(r, c).some(n => mines.some(m => m.r === n.r && m.c === n.c && !m.disarmed));
+        }
+
+        function endGame(isWin, message, svgContent, bgClass) {
+            gameOver = true;
+            clearInterval(globalTimerInterval);
+            clearInterval(quizTimerInterval);
+            updateUI();
+
+            const modal = document.getElementById('gameModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDesc = document.getElementById('modalDesc');
+            const modalIcon = document.getElementById('modalIcon');
+
+            modalTitle.innerText = isWin ? "MISI SUKSES" : "MISI GAGAL";
+            modalTitle.className = `text-2xl font-bold tactical-font ${isWin ? 'text-emerald-400' : 'text-red-500'} mb-2 uppercase tracking-wide`;
+            modalDesc.innerText = message;
+            modalIcon.className = `w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 p-3 ${bgClass}`;
+            modalIcon.innerHTML = svgContent;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('gameModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function resetGame() {
+            closeModal();
+            closeQuizModal();
+            initGame();
+        }
+
+        function setupKeyboard() {
+            document.addEventListener('keydown', (e) => {
+                if (gameOver || currentMineCell) return;
+
+                switch (e.key) {
+                    case 'ArrowUp':
+                    case 'w':
+                    case 'W':
+                        movePlayer('up');
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                    case 'S':
+                        movePlayer('down');
+                        break;
+                    case 'ArrowLeft':
+                    case 'a':
+                    case 'A':
+                        movePlayer('left');
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                    case 'D':
+                        movePlayer('right');
+                        break;
+                    case ' ':
+                    case 'g':
+                    case 'G':
+                        grabDefuseKit();
+                        break;
+                    case 'e':
+                    case 'E':
+                        callSupportAndDefuse();
+                        break;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
