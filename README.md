@@ -48,3 +48,4 @@ WASD / panah = jalan, `G` / spasi = ambil kit, `E` = panggil pasukan.
 - Menang Stage 1 → lanjut Stage 2.
 - Kalah di stage mana pun → ulangi stage yang sama.
 - Menang Stage 2 → selesai, kembali ke Stage 1.
+ 
