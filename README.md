@@ -31,7 +31,7 @@ Lalu buka `http://localhost:8000`. Membuka `index.html` langsung juga bisa.
 
 ## Setup ESP8266
 
-1. Buka `wumpus_esp8266.ino` di Arduino IDE (board: NodeMCU 1.0 / ESP8266).
+1. Buka `wumpus.ino` di Arduino IDE (board: NodeMCU 1.0 / ESP8266).
 2. Isi `WIFI_SSID` dan `WIFI_PASS`.
 3. Pastikan IP statis di firmware sama dengan `NODEMCU_IP` di `config.js`.
 4. Wiring: D1 → resistor 220Ω → LED North → GND, D2 → resistor 220Ω → LED South → GND.
