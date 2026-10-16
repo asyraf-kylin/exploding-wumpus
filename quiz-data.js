@@ -4,13 +4,13 @@
 // Menambah soal: cukup tambah satu objek baru di bawah, game otomatis ikut mengacaknya.
 const QUIZ_BANK = [
     {
-        question: "Di kota manakah kampus utama ITK berada?",
-        options: ["Samarinda", "Balikpapan", "Bontang", "Banjarmasin"],
+        question: "Kota Balikpapan berada di provinsi apa?",
+        options: ["Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara", "Kalimantan Tengah"],
         answer: 1
     },
     {
-        question: "ITK berada di provinsi apa?",
-        options: ["Kalimantan Selatan", "Kalimantan Utara", "Kalimantan Timur", "Kalimantan Tengah"],
+        question: "Ada Program Studi di ITK?",
+        options: ["10", "22", "27", "31"],
         answer: 2
     },
     {
@@ -19,15 +19,17 @@ const QUIZ_BANK = [
         answer: 3
     },
     {
-        question: "Kampus ITK berada di kecamatan apa?",
-        options: ["Balikpapan Utara", "Balikpapan Selatan", "Balikpapan Timur", "Balikpapan Barat"],
+        question: "Apa kepanjangan IoT?",
+        options: ["Internet of Things", "Internet of Tokens", "Internet of Transactions", "Internet of Telindung"],
         answer: 0
     },
     {
-        question: "ITK didirikan berdasarkan Peraturan Presiden nomor berapa?",
-        options: ["Perpres No. 87 Tahun 2012", "Perpres No. 125 Tahun 2014", "Perpres No. 40 Tahun 2015", "Perpres No. 6 Tahun 2017"],
+        question: "Kapan tanggal dimana menara kembar WTC di New York runtuh akibat serangan teroris?",
+        options: ["1 September 2005", "11 September 2001", "11 Maret 2009", "8 Juli 2007"],
         answer: 1
     },
+
+    // Lanjutkan @Kamil
     {
         question: "Pada tahun berapa ITK menerima angkatan pertama mahasiswanya (sebanyak 100 orang)?",
         options: ["2010", "2012", "2014", "2016"],
