@@ -15,7 +15,7 @@ Taruh semua file ini dalam satu folder yang sama (kecuali `.ino`, yang di-upload
 | `iot.js` | Kirim perintah HTTP ke ESP |
 | `ui.js` | Render grid, modal, toast, efek ledakan |
 | `game.js` | Logika game & kontrol |
-| `wumpus_esp8266.ino` | Firmware NodeMCU / ESP8266 |
+| `wumpus.ino` | Firmware NodeMCU / ESP8266 |
 
 ## Menjalankan game
 
