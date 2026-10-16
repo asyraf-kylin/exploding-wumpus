@@ -1,7 +1,7 @@
 // Semua pengaturan game ada di sini, tinggal ubah tanpa menyentuh logika.
 const CONFIG = {
     // --- IoT (NodeMCU / ESP8266) ---
-    IOT_ENABLED: true,
+    IOT_ENABLED: false,
     NODEMCU_IP: "http://192.168.1.100",   // samakan dengan IP di firmware ESP
     IOT_TIMEOUT_MS: 1500,
 
