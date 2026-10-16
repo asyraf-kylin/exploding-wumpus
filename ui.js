@@ -158,7 +158,7 @@ function renderWtcInto(container) {
     const img = document.createElement('img');
     img.src = CONFIG.WTC_IMAGES[key];
     img.alt = CONFIG.WTC_LABELS[key];
-    img.className = 'w-full h-full object-contain';
+    img.className = 'w-full h-full object-cover object-top';
     img.onerror = () => {
         console.warn(`Gambar WTC tidak ditemukan: ${CONFIG.WTC_IMAGES[key]}`);
         container.innerHTML = wtcFallbackSvg();
