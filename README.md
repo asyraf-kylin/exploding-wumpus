@@ -1,4 +1,4 @@
-# Exploding Wumpus: Operation WTC Defuse
+# Exploding Wumpus: Twin Towers Operation
 
 ## Struktur file
 
