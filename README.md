@@ -11,7 +11,7 @@ Browser (game)  ->  server.py (Python/Flask)  ->  ESP8266 (WiFi)  ->  LED North 
 ## Struktur folder
 
 ```
-Exploding Wumpus/
+exploding-wumpus/
 ├── index.html
 ├── server.py
 ├── requirements.txt
