@@ -1,0 +1,81 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+    min-height: 100vh;
+    color: #f8fafc;
+    overflow-x: hidden;
+}
+
+.tactical-font { font-family: 'Chakra Petch', sans-serif; }
+.grid-cell { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* ---------- Petak peta ---------- */
+.fog-of-war {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.03), 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+.revealed-cell {
+    background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+    border-color: #3b82f6;
+    box-shadow: inset 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+/* ---------- Animasi glow ---------- */
+.player-glow {
+    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.9));
+    animation: player-pulse 2s ease-in-out infinite alternate;
+}
+@keyframes player-pulse {
+    from { transform: scale(0.96); }
+    to   { transform: scale(1.04); }
+}
+
+.bomb-glow { animation: bomb-pulse 1s ease-in-out infinite alternate; }
+@keyframes bomb-pulse {
+    from { filter: drop-shadow(0 0 4px #ef4444); }
+    to   { filter: drop-shadow(0 0 14px #dc2626); transform: scale(0.98); }
+}
+
+.kit-glow { animation: kit-pulse 1.2s ease-in-out infinite alternate; }
+@keyframes kit-pulse {
+    from { filter: drop-shadow(0 0 3px #10b981); transform: scale(0.95); }
+    to   { filter: drop-shadow(0 0 12px #34d399); transform: scale(1.05); }
+}
+
+/* Timer berkedip saat waktu hampir habis */
+.timer-warning { animation: warning-blink 0.6s ease-in-out infinite alternate; }
+@keyframes warning-blink {
+    from { color: #f59e0b; }
+    to   { color: #ef4444; }
+}
+
+/* ---------- Efek ledakan ---------- */
+.shake { animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both; }
+@keyframes shake {
+    10%, 90% { transform: translate3d(-3px, 0, 0); }
+    20%, 80% { transform: translate3d(5px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+    40%, 60% { transform: translate3d(8px, 0, 0); }
+}
+
+/* Overlay terpisah, karena background-color body tertutup gradient */
+.flash-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(239, 68, 68, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+}
+.flash-overlay.active { animation: flash-fade 0.6s ease-out; }
+@keyframes flash-fade {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.explode-anim { animation: explode-boost 0.6s ease-out forwards; }
+@keyframes explode-boost {
+    0%   { transform: scale(0.3) rotate(0deg); opacity: 0; }
+    50%  { transform: scale(1.4) rotate(15deg); opacity: 1; filter: drop-shadow(0 0 20px #ef4444); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
