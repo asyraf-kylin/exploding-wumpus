@@ -1,9 +1,9 @@
 # Exploding Wumpus: Operation WTC Defuse
 
-Alur koneksi (Opsi B):
+Alur koneksi:
 
 ```
-Browser (game)  ->  server.py (Python/Flask)  ->  ESP8266 (WiFi)  ->  LED North / South
+Browser (game)  ->  server.py (Python/Flask)  ->  ESP8266 (WiFi)  ->  LED North / South & Bomb
 ```
 
 ## Struktur file
@@ -14,7 +14,7 @@ Taruh semua file dalam satu folder yang sama (kecuali `.ino`, yang di-upload ke 
 |---|---|
 | `server.py` | Server perantara: menyajikan game, meneruskan perintah LED ke ESP, cek status ESP |
 | `requirements.txt` | Dependensi Python (flask, requests) |
-| `wumpus_esp8266.ino` | Firmware NodeMCU / ESP8266 |
+| `wumpus.ino` | Firmware NodeMCU / ESP8266 |
 | `index.html`, `style.css` | Halaman dan gaya |
 | `config.js` | Pengaturan game (waktu, jumlah kit/ranjau, gambar WTC) |
 | `quiz-data.js`, `assets.js`, `audio.js`, `ui.js`, `game.js` | Data kuis, ikon, suara, tampilan, logika |
