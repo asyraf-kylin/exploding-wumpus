@@ -1,9 +1,10 @@
 // Semua pengaturan game ada di sini, tinggal ubah tanpa menyentuh logika.
 const CONFIG = {
-    // --- IoT (NodeMCU / ESP8266) ---
+    // --- IoT (NodeMCU / ESP8266 lewat server.py) ---
+    // Alamat IP ESP diatur di server.py (variabel ESP_IP), bukan di sini.
     IOT_ENABLED: false,
-    NODEMCU_IP: "http://192.168.1.100",   // samakan dengan IP di firmware ESP
-    IOT_TIMEOUT_MS: 1500,
+    API_BASE: "",                          // kosong = game dibuka lewat server.py (http://localhost:8000)
+    STATUS_POLL_MS: 5000,                  // jeda cek status ESP
 
     // --- Gameplay ---
     GRID_SIZE: 6,
@@ -15,33 +16,38 @@ const CONFIG = {
     MINES_MIN: 4,
     MINES_MAX: 5,
 
-    // --- Stage ---
+    // --- Stage: dimainkan berurutan E -> F -> G ---
+    // `short` = huruf gedung di badge, `iotPrefix` = alamat LED di ESP (lewat server.py)
     STAGES: {
-        1: { name: "NORTH TOWER", iotPrefix: "/led/north" },
-        2: { name: "SOUTH TOWER", iotPrefix: "/led/south" }
+        1: { name: "GEDUNG E", short: "E", iotPrefix: "/led/e" },
+        2: { name: "GEDUNG F", short: "F", iotPrefix: "/led/f" },
+        3: { name: "GEDUNG G", short: "G", iotPrefix: "/led/g" }
     },
-    LAST_STAGE: 2,
+    LAST_STAGE: 3,
 
-    // --- Gambar kondisi Twin Towers ---
-    // Kunci = "<status North>_<status South>", status: idle (belum dimainkan) | clear | destroyed.
-    // Taruh file di folder `images/` (sebelah index.html), atau ubah path di sini.
+    // --- Gambar kondisi gedung (foto udara kampus, persegi 1080 x 1080 px) ---
+    // Kunci = "<status E>_<status F>_<status G>"
+    // status: idle (belum dimainkan) | clear (aman, hijau) | destroyed (hancur, merah)
+    // Nilainya nomor file di folder `images/`, mis. 1 -> images/1.jpg
+    // Ganti BUILDING_IMAGE_EXT kalau file kamu berformat lain (mis. ".png").
     // Kalau file belum ada / salah nama, game otomatis menampilkan ilustrasi placeholder.
-    WTC_IMAGES: {
-        idle_idle:           "images/wtc-idle.jpg",                       // awal misi
-        clear_idle:          "images/north-clear.jpg",                    // North clear, South belum dimainkan
-        destroyed_idle:      "images/north-destroyed.jpg",                // North hancur, South belum dimainkan
-        clear_clear:         "images/wtc-win.jpg",                        // keduanya clear
-        clear_destroyed:     "images/north-clear-south-destroyed.jpg",    // North clear, South hancur
-        destroyed_clear:     "images/north-destroyed-south-clear.jpg",    // North hancur, South clear (cek nama file ini)
-        destroyed_destroyed: "images/wtc-gameover.jpg"                    // keduanya hancur
-    },
-    WTC_LABELS: {
-        idle_idle:           "Misi dimulai",
-        clear_idle:          "North aman",
-        destroyed_idle:      "North hancur",
-        clear_clear:         "Kedua tower aman",
-        clear_destroyed:     "North aman, South hancur",
-        destroyed_clear:     "North hancur, South aman",
-        destroyed_destroyed: "Kedua tower hancur"
+    BUILDING_IMAGE_DIR: "images/",
+    BUILDING_IMAGE_EXT: ".png",
+    BUILDING_IMAGE_NO: {
+        idle_idle_idle:                1,   // awal misi, semua abu-abu
+        clear_idle_idle:               2,   // E aman
+        clear_clear_idle:              3,   // E, F aman
+        clear_clear_destroyed:         4,   // E, F aman, G hancur
+        clear_clear_clear:             5,   // semua aman
+        destroyed_idle_idle:           6,   // E hancur
+        destroyed_destroyed_idle:      7,   // E, F hancur
+        destroyed_destroyed_clear:     8,   // E, F hancur, G aman
+        destroyed_destroyed_destroyed: 9,   // semua hancur
+        clear_destroyed_idle:          10,  // E aman, F hancur
+        clear_destroyed_clear:         11,  // E aman, F hancur, G aman
+        clear_destroyed_destroyed:     12,  // E aman, F, G hancur
+        destroyed_clear_idle:          13,  // E hancur, F aman
+        destroyed_clear_destroyed:     14,  // E hancur, F aman, G hancur
+        destroyed_clear_clear:         15   // E hancur, F, G aman
     }
 };
