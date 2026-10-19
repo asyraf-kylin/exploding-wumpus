@@ -24,8 +24,8 @@ const QUIZ_BANK = [
         answer: 0
     },
     {
-        question: "Kapan tanggal dimana menara kembar WTC di New York runtuh akibat serangan teroris?",
-        options: ["1 September 2005", "11 September 2001", "11 Maret 2009", "8 Juli 2007"],
+        question: "Dalam Wumpus World klasik, apa yang dirasakan agen saat berada di petak yang bersebelahan dengan Pit (lubang)?",
+        options: ["Stench (bau)", "Breeze (hembusan angin)", "Glitter (kilauan)", "Bump (tabrakan)"],
         answer: 1
     },
 
