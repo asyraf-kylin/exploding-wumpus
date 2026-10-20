@@ -53,7 +53,7 @@ Kalau gambar belum ada, game menampilkan ilustrasi placeholder, jadi tetap bisa 
 ## IoT (opsional)
 
 1. Rakit 3 LED + resistor 220 ohm: E ke `D1`, F ke `D2`, G ke `D5`, katoda ke GND.
-2. Buka `firmware/wumpus.ino`, isi `WIFI_SSID`, `WIFI_PASS`, dan IP tetap, lalu upload ke NodeMCU.
+2. Buka `firmware/wumpus.ino`, buat file tersebut dapat terhubung melalui iot.js dengan perantara API lalu upload ke NodeMCU.
 3. Jalankan `server.py` dengan `ESP_IP` yang sama.
 4. Di `js/config.js`, ubah `IOT_ENABLED` jadi `true`.
 5. Opsional: aktifkan baris `<div id="espStatus"></div>` di `index.html` untuk menampilkan badge status ESP.
