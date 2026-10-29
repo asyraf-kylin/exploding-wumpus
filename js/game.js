@@ -1,5 +1,12 @@
 // Logika game. Tampilan ada di ui.js, pengaturan di config.js.
 
+// Hasil tiap gedung: null (belum dimainkan) | 'safe' | 'destroyed'. Jumlah stage mengikuti CONFIG.LAST_STAGE.
+function newResults() {
+    const results = {};
+    for (let i = 1; i <= CONFIG.LAST_STAGE; i++) results[i] = null;
+    return results;
+}
+
 const state = {
     stage: 1,
     player: { ...CONFIG.START_POS },
@@ -13,7 +20,7 @@ const state = {
     exploded: null,        // koordinat petak yang meledak
     activeMine: null,      // ranjau yang sedang dikuis
     lastResultClear: false, // hasil stage terakhir (menang/kalah)
-    results: { 1: null, 2: null } // hasil tiap tower: null | 'safe' | 'destroyed'
+    results: newResults()
 };
 
 let globalTimer = null;
@@ -284,7 +291,7 @@ function handleModalNext() {
         state.stage++;
     } else {
         state.stage = 1;
-        state.results = { 1: null, 2: null };
+        state.results = newResults();
         sendIoTCommand('/led/all/off');
     }
     initGame();
@@ -292,7 +299,7 @@ function handleModalNext() {
 
 function resetGame() {
     state.stage = 1;
-    state.results = { 1: null, 2: null };
+    state.results = newResults();
     sendIoTCommand('/led/all/off');
     initGame();
 }

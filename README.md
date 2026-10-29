@@ -1,51 +1,88 @@
-# Exploding Wumpus: Twin Towers Operation
+# Exploding Wumpus — Operasi Gedung E, F, G ITK
 
-## Struktur file
+Game web bertema Wumpus World: jinakkan bom Wumpus di tiga gedung ITK (E, F, lalu G) sebelum waktu habis.
+Ranjau di peta memicu kuis seputar ITK. LED fisik (NodeMCU/ESP8266) ikut menyala sesuai hasil tiap gedung.
 
-Taruh semua file ini dalam satu folder yang sama (kecuali `.ino`, yang di-upload ke ESP):
+## Cara main
 
-| File | Isi |
-|---|---|
-| `index.html` | Kerangka halaman |
-| `style.css` | Animasi & gaya kustom |
-| `config.js` | Semua pengaturan (IP ESP, waktu, jumlah kit/ranjau, stage) |
-| `quiz-data.js` | Bank soal kuis ranjau |
-| `assets.js` | Ikon SVG |
-| `audio.js` | Efek suara (Web Audio) |
-| `iot.js` | Kirim perintah HTTP ke ESP |
-| `ui.js` | Render grid, modal, toast, efek ledakan |
-| `game.js` | Logika game & kontrol |
-| `wumpus.ino` | Firmware NodeMCU / ESP8266 |
+- Gerak: `WASD` atau tombol panah. `G` / spasi = ambil Defuse Kit. `E` = panggil pasukan.
+- Kumpulkan 5 Defuse Kit, balik ke Bunker (pojok kiri bawah), lalu panggil pasukan.
+- Menginjak bom Wumpus, salah menjawab kuis ranjau, atau waktu habis (60 detik) = gedung hancur.
+- Stage berurutan: Gedung E, F, lalu G. Menang atau kalah, stage tetap lanjut.
+- Sensor: Bau Mesiu (dekat bom), Dengung Detektor (dekat ranjau), Sinyal Radar (ada kit di petak).
 
-## Menjalankan game
+## Menjalankan
 
-Cara paling gampang, jalankan server lokal pakai Python dari folder proyek:
-
-```
-python -m http.server 8000
+```bash
+pip install -r requirements.txt
+python server.py
 ```
 
-Lalu buka `http://localhost:8000`. Membuka `index.html` langsung juga bisa.
+Buka http://localhost:8000. Game harus dibuka lewat `server.py` supaya jalur `/api/...` ke ESP ketemu.
 
-> Buka lewat `http://`, bukan `https://`. Browser memblokir request ke ESP yang tidak ber-HTTPS dari halaman HTTPS.
+Pengaturan server (opsional, lewat environment variable):
 
-## Setup ESP8266
+| Variabel | Default | Fungsi |
+|---|---|---|
+| `ESP_IP` | `192.168.1.100` | IP NodeMCU, samakan dengan firmware |
+| `HOST` | `127.0.0.1` | isi `0.0.0.0` supaya bisa dibuka dari perangkat lain |
+| `PORT` | `8000` | port server |
 
-1. Buka `wumpus.ino` di Arduino IDE (board: NodeMCU 1.0 / ESP8266).
-2. Isi `WIFI_SSID` dan `WIFI_PASS`.
-3. Pastikan IP statis di firmware sama dengan `NODEMCU_IP` di `config.js`.
-4. Wiring: D1 → resistor 220Ω → LED North → GND, D2 → resistor 220Ω → LED South → GND.
-5. Upload, lalu tes di browser: `http://192.168.1.100/led/north/blink`.
+Contoh: `ESP_IP=192.168.0.50 python server.py`
 
-Kalau belum punya ESP, set `IOT_ENABLED: false` di `config.js`.
+## Gambar kondisi gedung
 
-## Kontrol
+Taruh 15 gambar (foto udara 1080 x 1080 px) di folder `images/` dengan nama `1.jpg` sampai `15.jpg`.
+Kalau formatnya bukan `.jpg`, ubah `BUILDING_IMAGE_EXT` di `js/config.js`.
 
-WASD / panah = jalan, `G` / spasi = ambil kit, `E` = panggil pasukan.
+Hijau = aman, merah = hancur, abu-abu = belum dimainkan. Urutan warna gedung: E, F, G.
 
-## Alur stage
+| No | Kondisi (E_F_G) | No | Kondisi (E_F_G) |
+|---|---|---|---|
+| 1 | idle_idle_idle | 9 | destroyed_destroyed_destroyed |
+| 2 | clear_idle_idle | 10 | clear_destroyed_idle |
+| 3 | clear_clear_idle | 11 | clear_destroyed_clear |
+| 4 | clear_clear_destroyed | 12 | clear_destroyed_destroyed |
+| 5 | clear_clear_clear | 13 | destroyed_clear_idle |
+| 6 | destroyed_idle_idle | 14 | destroyed_clear_destroyed |
+| 7 | destroyed_destroyed_idle | 15 | destroyed_clear_clear |
+| 8 | destroyed_destroyed_clear | | |
 
-- Menang Stage 1 → lanjut Stage 2.
-- Kalah di stage mana pun → ulangi stage yang sama.
-- Menang Stage 2 → selesai, kembali ke Stage 1.
- 
+Kalau gambar belum ada, game menampilkan ilustrasi placeholder, jadi tetap bisa dimainkan.
+
+## IoT (opsional)
+
+1. Rakit 3 LED + resistor 220 ohm: E ke `D1`, F ke `D2`, G ke `D5`, katoda ke GND.
+2. Buka `firmware/wumpus.ino`, buat file tersebut dapat terhubung melalui iot.js dengan perantara API lalu upload ke NodeMCU.
+3. Jalankan `server.py` dengan `ESP_IP` yang sama.
+4. Di `js/config.js`, ubah `IOT_ENABLED` jadi `true`.
+5. Opsional: aktifkan baris `<div id="espStatus"></div>` di `index.html` untuk menampilkan badge status ESP.
+
+Perilaku LED: berkedip saat stage dimainkan, menyala saat gedung selamat, mati saat gedung hancur.
+
+Endpoint ESP (dipanggil lewat `server.py`): `/status`, `/led/<e|f|g>/<blink|solid|off>`, `/led/all/off`.
+
+## Struktur
+
+```
+exploding-wumpus/
+├── index.html
+├── server.py            # server game + perantara ke ESP
+├── requirements.txt
+├── README.md
+├── css/style.css
+├── js/
+│   ├── config.js        # pengaturan game + daftar gambar gedung
+│   ├── quiz-data.js     # bank soal kuis (seputar ITK)
+│   ├── assets.js        # ikon SVG
+│   ├── audio.js         # efek suara (Web Audio)
+│   ├── iot.js           # pemanggil API ke server.py + badge status ESP
+│   ├── ui.js            # semua urusan tampilan
+│   └── game.js          # logika game
+├── images/              # 15 gambar kondisi gedung E, F, G
+└── firmware/wumpus.ino  # firmware NodeMCU / ESP8266
+```
+
+## Menambah soal kuis
+
+Tambah satu objek di `js/quiz-data.js`. `answer` adalah index jawaban benar di `options`.

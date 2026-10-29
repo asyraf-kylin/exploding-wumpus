@@ -101,72 +101,112 @@ function updateUI() {
     renderGrid();
     updateSensors();
     updateStatus();
-    renderWtcPanel();
+    renderBuildingPanel();
 }
 
 function setStageLabel(text) {
     $('stageDisplay').innerText = text;
 }
 
-// ---------- Panel kondisi WTC ----------
-// Status tiap tower: 'idle' (belum dimainkan), 'clear' (aman), 'destroyed' (hancur)
-function towerStatus(result) {
+// ---------- Panel kondisi gedung ----------
+// Status tiap gedung: 'idle' (belum dimainkan), 'clear' (aman), 'destroyed' (hancur)
+function buildingStatus(result) {
     if (result === 'safe') return 'clear';
     if (result === 'destroyed') return 'destroyed';
     return 'idle';
 }
 
-// Kunci gambar: "<status North>_<status South>", mis. "clear_destroyed"
-function getWtcKey() {
-    return `${towerStatus(state.results[1])}_${towerStatus(state.results[2])}`;
+// Daftar nomor stage berurutan, mis. [1, 2, 3]
+function getStageIds() {
+    return Object.keys(CONFIG.STAGES).map(Number).sort((a, b) => a - b);
+}
+
+// Kunci gambar: "<status E>_<status F>_<status G>", mis. "clear_destroyed_idle"
+function getBuildingKey() {
+    return getStageIds().map(id => buildingStatus(state.results[id])).join('_');
+}
+
+// Path gambar dari kunci. undefined kalau kuncinya tidak terdaftar di config.
+function getBuildingImageSrc(key) {
+    const no = CONFIG.BUILDING_IMAGE_NO[key];
+    if (no === undefined) return undefined;
+    return `${CONFIG.BUILDING_IMAGE_DIR}${no}${CONFIG.BUILDING_IMAGE_EXT}`;
+}
+
+// Keterangan singkat dari kunci, mis. "E aman · F hancur"
+function getBuildingLabel(key) {
+    const statuses = key.split('_');
+    const safe = [];
+    const destroyed = [];
+    getStageIds().forEach((id, i) => {
+        const letter = CONFIG.STAGES[id].short;
+        if (statuses[i] === 'clear') safe.push(letter);
+        if (statuses[i] === 'destroyed') destroyed.push(letter);
+    });
+    if (!safe.length && !destroyed.length) return 'Misi dimulai';
+
+    const parts = [];
+    if (safe.length) parts.push(`${safe.join(', ')} aman`);
+    if (destroyed.length) parts.push(`${destroyed.join(', ')} hancur`);
+    return parts.join(' · ');
 }
 
 // Ilustrasi cadangan kalau file gambar belum ada / gagal dimuat
-function wtcFallbackSvg() {
+function buildingFallbackSvg() {
     const palette = {
         idle:  { fill: '#0f172a', stroke: '#64748b', line: '#1e293b' },
         clear: { fill: '#064e3b', stroke: '#10b981', line: '#047857' }
     };
 
-    const tower = (x, status) => {
+    const building = (x, label, status) => {
+        const name = `<text x="${x + 25}" y="148" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="monospace">${label}</text>`;
         if (status === 'destroyed') {
-            return `<polygon points="${x},150 ${x},100 ${x + 9},84 ${x + 17},98 ${x + 26},78 ${x + 34},96 ${x + 42},150" fill="#450a0a" stroke="#ef4444" stroke-width="2"/>
-                    <circle cx="${x + 21}" cy="76" r="7" fill="#f59e0b" opacity="0.85"/>`;
+            return `<polygon points="${x},120 ${x},96 ${x + 10},80 ${x + 20},92 ${x + 30},72 ${x + 40},90 ${x + 50},98 ${x + 50},120" fill="#450a0a" stroke="#ef4444" stroke-width="2"/>
+                    <circle cx="${x + 27}" cy="70" r="7" fill="#f59e0b" opacity="0.85"/>${name}`;
         }
         const p = palette[status];
-        return `<rect x="${x}" y="24" width="42" height="126" fill="${p.fill}" stroke="${p.stroke}" stroke-width="2"/>
-                <path d="M${x + 8} 34V142M${x + 17} 34V142M${x + 26} 34V142M${x + 35} 34V142" stroke="${p.line}" stroke-width="1.5"/>`;
+        return `<rect x="${x}" y="50" width="50" height="70" fill="${p.fill}" stroke="${p.stroke}" stroke-width="2"/>
+                <path d="M${x + 10} 60V112M${x + 20} 60V112M${x + 30} 60V112M${x + 40} 60V112" stroke="${p.line}" stroke-width="1.5"/>${name}`;
     };
 
-    return `<svg viewBox="-20 0 200 190" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
-        ${tower(30, towerStatus(state.results[1]))}
-        ${tower(88, towerStatus(state.results[2]))}
-        <text x="51" y="168" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="monospace">NORTH</text>
-        <text x="109" y="168" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="monospace">SOUTH</text>
-        <text x="80" y="184" text-anchor="middle" fill="#475569" font-size="7" font-family="monospace">(gambar belum dipasang)</text>
+    const xs = [20, 95, 170];
+    const blocks = getStageIds().map((id, i) =>
+        building(xs[i] ?? 20 + i * 75, CONFIG.STAGES[id].short, buildingStatus(state.results[id]))
+    ).join('');
+
+    return `<svg viewBox="0 0 240 190" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        ${blocks}
+        <text x="120" y="176" text-anchor="middle" fill="#475569" font-size="8" font-family="monospace">(gambar belum dipasang)</text>
     </svg>`;
 }
 
 // Isi sebuah container dengan gambar sesuai kondisi saat ini.
 // Dilewati kalau kondisinya sama dengan render sebelumnya, supaya gambar tidak berkedip.
-function renderWtcInto(container) {
-    const key = getWtcKey();
-    if (container.dataset.wtcKey === key) return;
-    container.dataset.wtcKey = key;
+function renderBuildingInto(container) {
+    const key = getBuildingKey();
+    if (container.dataset.buildingKey === key) return;
+    container.dataset.buildingKey = key;
     container.innerHTML = '';
 
+    const src = getBuildingImageSrc(key);
+    if (!src) {
+        console.warn(`Kunci gambar gedung tidak terdaftar di config: ${key}`);
+        container.innerHTML = buildingFallbackSvg();
+        return;
+    }
+
     const img = document.createElement('img');
-    img.src = CONFIG.WTC_IMAGES[key];
-    img.alt = CONFIG.WTC_LABELS[key];
-    img.className = 'w-full h-full object-cover object-top';
+    img.src = src;
+    img.alt = getBuildingLabel(key);
+    img.className = 'w-full h-full object-cover';
     img.onerror = () => {
-        console.warn(`Gambar WTC tidak ditemukan: ${CONFIG.WTC_IMAGES[key]}`);
-        container.innerHTML = wtcFallbackSvg();
+        console.warn(`Gambar gedung tidak ditemukan: ${src}`);
+        container.innerHTML = buildingFallbackSvg();
     };
     container.appendChild(img);
 }
 
-function setWtcBadge(el, name, result, isActive) {
+function setBuildingBadge(el, name, result, isActive) {
     let text, cls;
     if (result === 'destroyed') {
         text = 'HANCUR';
@@ -185,11 +225,14 @@ function setWtcBadge(el, name, result, isActive) {
     el.innerText = `${name}: ${text}`;
 }
 
-function renderWtcPanel() {
-    renderWtcInto($('wtcView'));
-    $('wtcCaption').innerText = CONFIG.WTC_LABELS[getWtcKey()];
-    setWtcBadge($('wtcNorthBadge'), 'North', state.results[1], state.stage === 1 && !state.gameOver);
-    setWtcBadge($('wtcSouthBadge'), 'South', state.results[2], state.stage === 2 && !state.gameOver);
+function renderBuildingPanel() {
+    renderBuildingInto($('buildingView'));
+    $('buildingCaption').innerText = getBuildingLabel(getBuildingKey());
+    getStageIds().forEach(id => {
+        const badge = $(`buildingBadge${id}`);
+        if (!badge) return;
+        setBuildingBadge(badge, CONFIG.STAGES[id].short, state.results[id], state.stage === id && !state.gameOver);
+    });
 }
 
 // ---------- Efek ledakan ----------
@@ -260,7 +303,7 @@ function showResultModal({ isClear, title, message, buttonText }) {
     icon.innerHTML = isClear ? ASSETS.DEFUSE_KIT : ASSETS.EXPLOSION;
 
     $('modalBtn').innerText = buttonText;
-    renderWtcInto($('modalWtc'));
+    renderBuildingInto($('modalBuilding'));
 
     const modal = $('gameModal');
     modal.classList.remove('hidden');
