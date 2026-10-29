@@ -97,7 +97,7 @@ const QUIZ_BANK = [
     },
     {
         question: "Apa yang dimaksud dengan open-source software?",
-        options: ["Perangkat lunak yang hanya bisa digunakan tanpa internet", "Perangkat lunak yang tidak boleh dimodifikasi, Perangkat lunak yang kode sumbernya tersedia sesuai ketentuan lisensinya", "Perangkat lunak yang selalu berbayar"],
+        options: ["Perangkat lunak yang hanya bisa digunakan tanpa internet", "Perangkat lunak yang tidak boleh dimodifikasi", "Perangkat lunak yang kode sumbernya tersedia sesuai ketentuan lisensinya", "Perangkat lunak yang selalu berbayar"],
         answer: 2
     },
     {
