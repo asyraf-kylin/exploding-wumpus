@@ -1,77 +1,77 @@
-// Komunikasi IoT lewat server Python (server.py), bukan langsung ke ESP lagi.
+// Jembatan game -> NodeMCU (ESP8266), lewat server.py (/api/...).
+// Game tidak pernah menunggu ESP: semua perintah dikirim antrean di belakang layar,
+// kalau ESP mati / belum tersambung, game tetap jalan normal.
 //
-// Alur: game (browser) -> /api/... di server.py -> ESP8266
-//
-// Game harus dibuka lewat server.py (http://localhost:8000) supaya path "/api/..." ketemu.
-// Kalau game dibuka dari alamat lain, isi CONFIG.API_BASE di config.js, mis. "http://localhost:8000".
+// Pembagian tugas:
+//   - Game (browser) yang memutuskan hasil: stage mulai, kuis ranjau, clear, hancur.
+//   - ESP hanya menjalankan hitung mundur LCD + beep sendiri (tidak perlu kirim tiap detik),
+//     jadi tampilan tetap mulus walau WiFi sempat lag.
 
-const IOT_API_BASE = (typeof CONFIG.API_BASE === 'string') ? CONFIG.API_BASE : "";
-const IOT_STATUS_POLL_MS = CONFIG.STATUS_POLL_MS || 5000;
-// Harus lebih besar dari timeout server.py ke ESP (default 1,5 detik),
-// supaya "ESP offline" tidak salah terbaca sebagai "server mati".
-const IOT_REQUEST_TIMEOUT_MS = 4000;
-
-// ---------- Badge status ESP ----------
-const ESP_BADGE_STYLES = {
-    online:      { text: 'ESP ONLINE',         cls: 'text-emerald-400 border-emerald-800 bg-emerald-950/70', dot: 'bg-emerald-400' },
-    esp_offline: { text: 'ESP OFFLINE',        cls: 'text-red-400 border-red-800 bg-red-950/70',             dot: 'bg-red-500' },
-    server_down: { text: 'SERVER PYTHON MATI', cls: 'text-amber-400 border-amber-800 bg-amber-950/70',       dot: 'bg-amber-400' },
-    disabled:    { text: 'IOT NONAKTIF',       cls: 'text-slate-400 border-slate-700 bg-slate-900',          dot: 'bg-slate-500' }
+const IOT = {
+    online: false,
+    queue: [],
+    busy: false,
+    MAX_QUEUE: 10
 };
 
-let lastEspStatus = null;
-
-// Mengisi <div id="espStatus"></div> kalau ada di index.html. Kalau tidak ada, dilewati begitu saja.
-function setEspBadge(status) {
-    if (status === lastEspStatus) return;
-    lastEspStatus = status;
-
-    const el = document.getElementById('espStatus');
-    if (!el) return;
-
-    const s = ESP_BADGE_STYLES[status] || ESP_BADGE_STYLES.server_down;
-    el.className = `inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full border text-[11px] font-mono font-semibold tracking-wider ${s.cls}`;
-    el.innerHTML = `<span class="w-2 h-2 rounded-full ${s.dot}"></span>${s.text}`;
-}
-
-// ---------- Request ----------
-function fetchWithTimeout(url, timeoutMs) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    return fetch(url, { signal: controller.signal, cache: 'no-store' })
-        .finally(() => clearTimeout(timeoutId));
-}
-
-// Dipanggil game.js, mis. sendIoTCommand('/led/e/blink')
+// Kirim satu perintah (path ESP, mis. "/stage/start?stage=1&t=60"). Berurutan, tidak memblokir game.
 function sendIoTCommand(path) {
     if (!CONFIG.IOT_ENABLED) return;
-
-    fetchWithTimeout(`${IOT_API_BASE}/api${path}`, IOT_REQUEST_TIMEOUT_MS)
-        .then(res => setEspBadge(res.ok ? 'online' : 'esp_offline'))
-        .catch(err => {
-            console.log("IoT Send Error:", path, err.name);
-            setEspBadge('server_down');
-        });
+    IOT.queue.push(path);
+    // Kalau antrean menumpuk (ESP lama tidak menjawab), buang yang paling lama.
+    while (IOT.queue.length > IOT.MAX_QUEUE) IOT.queue.shift();
+    pumpIoTQueue();
 }
 
-// ---------- Cek status berkala ----------
+async function pumpIoTQueue() {
+    if (IOT.busy) return;
+    IOT.busy = true;
+    while (IOT.queue.length) {
+        const path = IOT.queue.shift();
+        try {
+            const res = await fetch(`${CONFIG.API_BASE}/api${path}`, { cache: 'no-store' });
+            setEspOnline(res.ok);
+        } catch (e) {
+            setEspOnline(false);
+        }
+    }
+    IOT.busy = false;
+}
+
+// ---------- Perintah sesuai kejadian game ----------
+// stage = 1..3 (E, F, G), detik = sisa waktu stage
+function iotStageStart(stage, seconds) { sendIoTCommand(`/stage/start?stage=${stage}&t=${seconds}`); }
+function iotQuizStart(seconds)        { sendIoTCommand(`/quiz/start?t=${seconds}`); }
+function iotQuizEnd()                 { sendIoTCommand('/quiz/end'); }
+function iotStageResult(stage, clear) { sendIoTCommand(`/stage/${clear ? 'clear' : 'destroyed'}?stage=${stage}`); }
+function iotReset()                   { sendIoTCommand('/reset'); }
+
+// ---------- Badge status ESP (opsional: elemen #espStatus di index.html) ----------
+function setEspOnline(isOnline) {
+    IOT.online = isOnline;
+    const el = document.getElementById('espStatus');
+    if (!el) return;
+    el.textContent = isOnline ? 'ESP: TERHUBUNG' : 'ESP: TIDAK TERHUBUNG';
+    el.className = 'fixed top-3 right-3 z-40 px-3 py-1 rounded-full border text-[10px] font-bold tracking-widest font-mono ' +
+        (isOnline
+            ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300'
+            : 'bg-red-950/80 border-red-500/60 text-red-300');
+}
+
 async function pollEspStatus() {
-    if (!CONFIG.IOT_ENABLED) {
-        setEspBadge('disabled');
-        return;
-    }
+    // Jangan ganggu antrean perintah; cek status hanya saat antrean kosong.
+    if (IOT.busy) return;
     try {
-        const res = await fetchWithTimeout(`${IOT_API_BASE}/api/status`, IOT_REQUEST_TIMEOUT_MS);
-        const data = await res.json();
-        setEspBadge(data.esp_online ? 'online' : 'esp_offline');
-    } catch (err) {
-        setEspBadge('server_down');
+        const res = await fetch(`${CONFIG.API_BASE}/api/status`, { cache: 'no-store' });
+        setEspOnline(res.ok);
+    } catch (e) {
+        setEspOnline(false);
     }
 }
 
-function startIoTStatusPolling() {
+window.addEventListener('load', () => {
+    if (!CONFIG.IOT_ENABLED) return;
+    setEspOnline(false);
     pollEspStatus();
-    setInterval(pollEspStatus, IOT_STATUS_POLL_MS);
-}
-
-window.addEventListener('load', startIoTStatusPolling);
+    setInterval(pollEspStatus, CONFIG.STATUS_POLL_MS);
+});
