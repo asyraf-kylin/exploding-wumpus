@@ -104,7 +104,7 @@ function initGame() {
 
     const stage = CONFIG.STAGES[state.stage];
     setStageLabel(`STAGE ${state.stage}: ${stage.name}`);
-    sendIoTCommand(`${stage.iotPrefix}/blink`);
+    iotStageStart(state.stage, CONFIG.GAME_TIME);
 
     state.revealed = Array.from({ length: CONFIG.GRID_SIZE }, () => Array(CONFIG.GRID_SIZE).fill(false));
     state.revealed[CONFIG.START_POS.r][CONFIG.START_POS.c] = true;
@@ -221,6 +221,7 @@ function startMineQuiz(mine) {
     let secondsLeft = CONFIG.QUIZ_TIME;
     setQuizTimerDisplay(secondsLeft);
     openQuizModal(quiz.question, options, handleQuizAnswer);
+    iotQuizStart(secondsLeft);
 
     clearInterval(quizTimer);
     quizTimer = setInterval(() => {
@@ -243,6 +244,7 @@ function handleQuizAnswer(isCorrect) {
     if (isCorrect) {
         state.activeMine.disarmed = true;
         state.activeMine = null;
+        iotQuizEnd();
         playSound('kit');
         updateUI();
     } else {
@@ -268,12 +270,12 @@ function handleStageResult(isClear, message) {
     updateUI();
 
     const stage = CONFIG.STAGES[state.stage];
-    sendIoTCommand(`${stage.iotPrefix}/${isClear ? 'solid' : 'off'}`);
+    iotStageResult(state.stage, isClear);
 
     // Menang atau kalah, pemain tetap lanjut ke stage berikutnya
     let buttonText;
     if (state.stage < CONFIG.LAST_STAGE) buttonText = `Lanjut ke Stage ${state.stage + 1} (${CONFIG.STAGES[state.stage + 1].name})`;
-    else buttonText = "Selesai Operasi (Main Lagi)";
+    else buttonText = "Selesai Operasi";
 
     resultTimeout = setTimeout(() => {
         showResultModal({
@@ -286,21 +288,22 @@ function handleStageResult(isClear, message) {
 }
 
 function handleModalNext() {
-    // Menang atau kalah, selalu lanjut. Setelah stage terakhir, kembali ke Stage 1.
-    if (state.stage < CONFIG.LAST_STAGE) {
-        state.stage++;
-    } else {
-        state.stage = 1;
-        state.results = newResults();
-        sendIoTCommand('/led/all/off');
+    // Menang atau kalah, selalu lanjut ke stage berikutnya.
+    // Setelah stage terakhir, modal cuma ditutup: lampu LED tetap seperti hasil akhir
+    // sampai pemain menekan tombol Reset Misi.
+    if (state.stage >= CONFIG.LAST_STAGE) {
+        hideResultModal();
+        showToast("Operasi selesai. Tekan Reset Misi untuk main lagi.");
+        return;
     }
+    state.stage++;
     initGame();
 }
 
 function resetGame() {
     state.stage = 1;
     state.results = newResults();
-    sendIoTCommand('/led/all/off');
+    iotReset();
     initGame();
 }
 
@@ -329,6 +332,6 @@ function setupControls() {
 
 window.addEventListener('load', () => {
     setupControls();
-    sendIoTCommand('/led/all/off');
+    iotReset();
     initGame();
 });
