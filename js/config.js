@@ -2,7 +2,8 @@
 const CONFIG = {
     // --- IoT (NodeMCU / ESP8266 lewat server.py) ---
     // Alamat IP ESP diatur di server.py (variabel ESP_IP), bukan di sini.
-    IOT_ENABLED: false,
+    // Kalau ESP belum dipasang, game tetap jalan normal (perintah IoT gagal diam-diam).
+    IOT_ENABLED: true,
     API_BASE: "",                          // kosong = game dibuka lewat server.py (http://localhost:8000)
     STATUS_POLL_MS: 5000,                  // jeda cek status ESP
 
@@ -17,11 +18,11 @@ const CONFIG = {
     MINES_MAX: 5,
 
     // --- Stage: dimainkan berurutan E -> F -> G ---
-    // `short` = huruf gedung di badge, `iotPrefix` = alamat LED di ESP (lewat server.py)
+    // `short` = huruf gedung di badge. LED gedung di ESP mengikuti nomor stage (1=E, 2=F, 3=G).
     STAGES: {
-        1: { name: "GEDUNG E", short: "E", iotPrefix: "/led/e" },
-        2: { name: "GEDUNG F", short: "F", iotPrefix: "/led/f" },
-        3: { name: "GEDUNG G", short: "G", iotPrefix: "/led/g" }
+        1: { name: "GEDUNG E", short: "E" },
+        2: { name: "GEDUNG F", short: "F" },
+        3: { name: "GEDUNG G", short: "G" }
     },
     LAST_STAGE: 3,
 
