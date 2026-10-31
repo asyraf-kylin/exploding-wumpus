@@ -1,7 +1,7 @@
 # Exploding Wumpus — Operasi Gedung E, F, G ITK
 
 Game web bertema Wumpus World: jinakkan bom Wumpus di tiga gedung ITK (E, F, lalu G) sebelum waktu habis.
-Ranjau di peta memicu kuis seputar ITK. LED fisik (NodeMCU/ESP8266) ikut menyala sesuai hasil tiap gedung.
+Ranjau di peta memicu kuis seputar ITK. LED, LCD, dan buzzer fisik (NodeMCU/ESP8266) ikut mengikuti jalannya game.
 
 ## Cara main
 
@@ -50,17 +50,54 @@ Hijau = aman, merah = hancur, abu-abu = belum dimainkan. Urutan warna gedung: E,
 
 Kalau gambar belum ada, game menampilkan ilustrasi placeholder, jadi tetap bisa dimainkan.
 
-## IoT (opsional)
+## IoT (NodeMCU ESP8266)
 
-1. Rakit 3 LED + resistor 220 ohm: E ke `D1`, F ke `D2`, G ke `D5`, katoda ke GND.
-2. Buka `firmware/wumpus.ino`, buat file tersebut dapat terhubung melalui iot.js dengan perantara API lalu upload ke NodeMCU.
-3. Jalankan `server.py` dengan `ESP_IP` yang sama.
-4. Di `js/config.js`, ubah `IOT_ENABLED` jadi `true`.
-5. Opsional: aktifkan baris `<div id="espStatus"></div>` di `index.html` untuk menampilkan badge status ESP.
+### Komponen
 
-Perilaku LED: berkedip saat stage dimainkan, menyala saat gedung selamat, mati saat gedung hancur.
+3 LED merah (gedung E, F, G), 1 LED hijau (berhasil), 1 LED merah (gagal), LCD 16x2 I2C, buzzer, NodeMCU ESP8266, resistor 220 ohm untuk tiap LED.
 
-Endpoint ESP (dipanggil lewat `server.py`): `/status`, `/led/<e|f|g>/<blink|solid|off>`, `/led/all/off`.
+### Wiring
+
+| Komponen | Pin NodeMCU | Catatan |
+|---|---|---|
+| LED merah gedung E | `D5` | D5 -> resistor 220 -> LED -> GND |
+| LED merah gedung F | `D6` | sama |
+| LED merah gedung G | `D7` | sama |
+| LED hijau (berhasil) | `D0` | D0 -> resistor 220 -> LED -> GND |
+| LED merah (gagal) | `D4` | **terbalik**: 3V3 -> resistor 220 -> LED (anoda) -> kaki katoda ke D4 |
+| Buzzer | `D8` | D8 -> buzzer (+), buzzer (-) -> GND. Aktif maupun pasif bisa |
+| LCD I2C | `D2` (SDA), `D1` (SCL) | VCC ke `VIN` (5V), GND ke GND |
+
+LED merah gagal dipasang terbalik karena `D4` (GPIO2) harus HIGH saat NodeMCU menyala.
+
+### Alur LED, LCD, buzzer
+
+| Kejadian di game | LED gedung | LED hijau / merah | LCD | Buzzer |
+|---|---|---|---|---|
+| Stage mulai | gedung stage itu **nyala** | mati | `GEDUNG E   00:59` / `BOM AKTIF!` | beep tiap detik, 2x/detik di 10 detik terakhir |
+| Menginjak ranjau (kuis) | tetap nyala | mati | baris 2: `RANJAU! QUIZ 12s` | beep lebih tinggi dan cepat |
+| Kuis benar | tetap nyala | mati | kembali ke timer | beep timer biasa |
+| Jawaban salah / waktu habis / injak bom | **tetap nyala** (gedung meledak) | **merah** nyala | `GEDUNG E HANCUR` / `** BOOM!!! **` | bunyi ledakan |
+| Defuse berhasil | **mati** (gedung aman) | **hijau** nyala | `GEDUNG E AMAN!` / `BOM DIJINAKKAN!` | nada sukses |
+| Stage berikutnya mulai | gedung baru nyala, gedung hancur sebelumnya tetap nyala | **tidak berubah**: hasil stage sebelumnya (hijau / merah) bertahan sampai hasil stage ini keluar | timer baru | beep timer |
+| Selesai stage terakhir | LED tetap seperti hasil akhir (gedung hancur tetap nyala) sampai Reset Misi ditekan | sesuai hasil | hasil stage terakhir | diam |
+| Reset misi | semua mati | mati | `EXPLODING WUMPUS` | diam |
+
+Timer LCD dihitung sendiri oleh NodeMCU dari waktu yang dikirim game di awal stage, jadi tetap mulus walau WiFi lag. Hasil akhir (clear / hancur) tetap diputuskan oleh game.
+
+### Langkah pasang
+
+1. Rakit sesuai tabel wiring.
+2. Arduino IDE: pasang paket board **ESP8266** (Boards Manager) dan library **LiquidCrystal I2C** oleh Frank de Brabander (Library Manager). Pilih board `NodeMCU 1.0 (ESP-12E Module)`.
+3. Buka `firmware/wumpus/wumpus.ino`, isi `WIFI_SSID` dan `WIFI_PASS`, lalu upload.
+4. Saat menyala, NodeMCU mengetes semua LED dan buzzer, lalu menampilkan **alamat IP-nya di LCD** (juga di Serial Monitor 115200). Catat IP itu.
+5. Jalankan server dengan IP tersebut: `ESP_IP=192.168.x.x python server.py` (Windows PowerShell: `$env:ESP_IP="192.168.x.x"; python server.py`).
+6. Buka http://localhost:8000. Badge pojok kanan atas menunjukkan `ESP: TERHUBUNG`.
+
+Komputer yang menjalankan `server.py` dan NodeMCU harus ada di WiFi/jaringan yang sama. Kalau ingin IP tetap, ubah `USE_STATIC_IP` di firmware.
+Untuk mematikan fitur IoT, ubah `IOT_ENABLED` jadi `false` di `js/config.js`. Tanpa NodeMCU, game tetap bisa dimainkan.
+
+Endpoint NodeMCU (dipanggil lewat `server.py` sebagai `/api/...`): `/status`, `/stage/start?stage=1&t=60`, `/quiz/start?t=15`, `/quiz/end`, `/stage/clear?stage=1`, `/stage/destroyed?stage=1`, `/reset`.
 
 ## Struktur
 
@@ -76,11 +113,11 @@ exploding-wumpus/
 │   ├── quiz-data.js     # bank soal kuis (seputar ITK)
 │   ├── assets.js        # ikon SVG
 │   ├── audio.js         # efek suara (Web Audio)
-│   ├── iot.js           # pemanggil API ke server.py + badge status ESP
+│   ├── iot.js           # pengirim perintah ke server.py + badge status ESP
 │   ├── ui.js            # semua urusan tampilan
 │   └── game.js          # logika game
 ├── images/              # 15 gambar kondisi gedung E, F, G
-└── firmware/wumpus.ino  # firmware NodeMCU / ESP8266
+└── firmware/wumpus/wumpus.ino   # firmware NodeMCU / ESP8266
 ```
 
 ## Menambah soal kuis
